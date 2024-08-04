@@ -2,14 +2,9 @@ import { Feature } from './processing/types';
 import fs from 'fs';
 import path from 'path';
 import postProcess from './processing/post-process';
-import { TestSuiteStats } from './data/stats';
+import { featureFailed, TestSuiteStats } from './data/stats';
 import { PAGE_SIZE } from '../constants';
 import { PARTITION_SIZE } from '../constants';
-
-const featureFailed = (feature: Feature) =>
-    feature.elements.some((f) =>
-        f.steps.some((s) => s.result?.status === 'failed')
-    );
 
 function* pageGenerator(
     features: Feature[],
@@ -45,6 +40,7 @@ export default function createDataJs(
             path.join(outPath, `${prefix}.js`)
         );
         const gen = pageGenerator(features, testStats, failedOnly);
+        let page = gen.next();
         let done = false;
         let partitionIndex = 0;
         let totalPages = 0;
@@ -62,16 +58,17 @@ export default function createDataJs(
 
                 let first = true;
                 let index = 0;
-                let page = gen.next();
 
                 writeStream.write(
                     `() => fetch('${prefix}-${partitionIndex}.json').then(res => res.json()),`
                 );
+
                 while (!page.done && index < PARTITION_SIZE) {
                     if (!first) {
                         jsonWriteStream.write(',');
                     }
-                    jsonWriteStream.write(JSON.stringify(page.value));
+                    const val = page.value;
+                    jsonWriteStream.write(JSON.stringify(val));
 
                     index++;
                     totalPages++;
@@ -89,8 +86,7 @@ export default function createDataJs(
         } catch (err) {
             reject(err);
         } finally {
-            writeStream.end();
+            writeStream.on('drain', () => resolve());
         }
-        resolve();
     });
 }

@@ -41,6 +41,11 @@ export type FeatureStats = {
     skipped: number;
 };
 
+export function featureFailed(feature: Feature) {
+    return feature.elements.some((f) =>
+        f.steps.some((s) => s.result?.status === 'failed')
+    );
+}
 function getFeatureStats(feature: Feature): FeatureStats {
     let passed = 0;
     let failed = 0;

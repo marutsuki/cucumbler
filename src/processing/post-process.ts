@@ -1,4 +1,4 @@
-import { TestSuiteStats } from 'src/data/stats';
+import { TestSuiteStats } from '../data/stats';
 import {
     BeforeAfter,
     Embedding,

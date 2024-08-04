@@ -6,6 +6,7 @@ import createDataJs from './create-datajs';
 import { getTestSuiteStats } from './data/stats';
 import render from './ui/render';
 import { PARTITION_SIZE } from '../constants';
+import generate from './processing/prefix-tree';
 
 console.debug = (message: string, ...args: unknown[]) => {
     if (Config.getConfig('verbose')) {
@@ -52,13 +53,17 @@ export async function renderReport(
     console.info('Processing JSON report files found under:', reportPath);
     const features = await processFeature(reportPath);
 
-    console.info('Static HTML markup rendered');
+    console.info('Features loaded into memory');
 
+    features.sort((a, b) => a.name.localeCompare(b.name));
+    console.debug('Sorted features by name');
     const scriptsPath = path.join(outPath, 'scripts');
     fs.mkdirSync(scriptsPath, { recursive: true });
+    console.debug('Generated scripts directory');
 
     const partitions = Math.ceil(features.length / PARTITION_SIZE);
     const stats = getTestSuiteStats(features);
+    console.debug('Test suite stats generated');
 
     Promise.all([
         createDataJs(outPath, features, stats, 'data').catch((err) => {
@@ -68,6 +73,10 @@ export async function renderReport(
         createDataJs(outPath, features, stats, 'failed', true).catch((err) => {
             console.error('An error occurred:', err);
         }),
+
+        generate(path.join(outPath, 'prefix-tree-data.json'), features),
+
+        generate(path.join(outPath, 'prefix-tree-failed.json'), features, true),
 
         new Promise<void>((resolve, reject) => {
             const from = path.join(__dirname, 'scripts');
@@ -93,7 +102,7 @@ export async function renderReport(
                             console.error(`An error occurred: ${err}`);
                             reject();
                         } else {
-                            console.debug('output.html created');
+                            console.info('Static HTML markup rendered');
                             resolve();
                         }
                     }
